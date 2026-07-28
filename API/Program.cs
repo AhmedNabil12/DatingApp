@@ -1,4 +1,7 @@
 using API.Data;
+using API.Interfaces;
+using API.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,15 +15,21 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 
 builder.Services.AddCors();
-// builder.Services.AddCors(options =>
-// {
-//     options.AddPolicy("CorsPolicy", policy =>
-//     {
-//         policy.AllowAnyHeader()
-//               .AllowAnyMethod()
-//               .WithOrigins("http://localhost:4200");
-//     });
-// });
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+{
+     var tokenKey = builder.Configuration["TokenKey"] ?? throw new Exception("TokenKey not found - Program.cs");
+   
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["TokenKey"])),
+        ValidateIssuer = false,
+        ValidateAudience = false
+    };
+});
+
 
 var app = builder.Build();
 
@@ -31,6 +40,9 @@ app.UseCors(policy =>
           .AllowAnyMethod()
           .WithOrigins("http://localhost:4200","https://localhost:4200");
 });
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
